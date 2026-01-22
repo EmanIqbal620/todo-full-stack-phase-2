@@ -5,12 +5,17 @@ import Link from 'next/link';
 import { useTheme } from '@/contexts/ThemeContext';
 import ThemeToggle from '../ui/ThemeToggle';
 
-const Sidebar: React.FC = () => {
+// Add a props interface to accept className
+interface SidebarProps {
+  className?: string;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
   const { theme } = useTheme();
 
   return (
     <aside
-      className="w-64 min-h-screen p-4 border-r sticky top-0"
+      className={`w-64 min-h-screen p-4 border-r sticky top-0 ${className}`}
       style={{
         backgroundColor: theme.colors.surface,
         borderColor: theme.colors.border,

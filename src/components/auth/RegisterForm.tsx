@@ -95,11 +95,28 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }) => {
         }
       } else {
         // Handle error response
-        const errorData = await response.json();
+        let errorMessage = 'Registration failed';
+
+        try {
+          // Check if response is JSON
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.detail || errorData.message || errorMessage;
+          } else {
+            // If not JSON, try to get text response
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          }
+        } catch (parseError) {
+          // If parsing fails, use generic error
+          console.error('Error parsing response:', parseError);
+        }
+
         if (onError) {
-          onError(errorData.detail || 'Registration failed');
+          onError(errorMessage);
         } else {
-          console.error('Registration error:', errorData);
+          console.error('Registration error:', errorMessage);
         }
       }
     } catch (error) {

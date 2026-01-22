@@ -14,7 +14,21 @@ class ApiClient {
   private defaultHeaders: Record<string, string>;
 
   constructor(config: ApiClientConfig = {}) {
-    this.baseUrl = config.baseUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    let baseUrl = config.baseUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    // Ensure HTTPS for production deployments (except for hf.space which handles redirects differently)
+    if (baseUrl.includes('hf.space')) {
+      // For Hugging Face spaces, we'll use HTTP to avoid redirect issues
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `https://${baseUrl}`;
+      }
+      // If it's already https://, leave as is - let the service handle its own redirects
+    } else if (!baseUrl.startsWith('https://') && !baseUrl.startsWith('http://')) {
+      baseUrl = `https://${baseUrl}`;
+    }
+
+    // The backend routes include /api prefix, so we include it in the base URL
+    this.baseUrl = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       ...config.defaultHeaders,

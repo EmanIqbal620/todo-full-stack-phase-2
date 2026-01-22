@@ -18,7 +18,12 @@ const Navbar: React.FC = () => {
 
     const element = document.getElementById(targetId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Calculate offset to account for sticky navbar
+      const offsetTop = element.offsetTop - 80; // Adjust for navbar height
+      window.scrollTo({
+        top: offsetTop,
+        behavior: 'smooth'
+      });
     }
     setIsMenuOpen(false); // Close menu after clicking
   };

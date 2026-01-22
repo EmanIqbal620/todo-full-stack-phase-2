@@ -5,36 +5,36 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { NotificationTypeEnum } from '@/types/ui';
 import { User } from 'lucide-react';
 
 const RegisterPage: React.FC = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { register } = useAuth();
+  const { showToast } = useToast();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Registration failed');
-
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('refresh_token', data.refresh_token || '');
-
+      await register(name, email, password);
+      showToast('Registration successful!', NotificationTypeEnum.SUCCESS);
       router.push('/dashboard');
       router.refresh();
     } catch (error: any) {
-      console.error('Registration error:', error.message);
-      alert(error.message || 'Registration failed');
+      console.error('Registration error:', error);
+      showToast(error.message || 'Registration failed', NotificationTypeEnum.ERROR);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,7 +104,8 @@ const RegisterPage: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="peer w-full bg-transparent border-b-2 py-2 px-1 focus:outline-none text-lg"
+                disabled={loading}
+                className={`peer w-full bg-transparent border-b-2 py-2 px-1 focus:outline-none text-lg ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 style={{
                   borderColor: theme.colors.accent,
                   color: theme.colors.text.primary,
@@ -126,7 +127,8 @@ const RegisterPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="peer w-full bg-transparent border-b-2 py-2 px-1 focus:outline-none text-lg"
+                disabled={loading}
+                className={`peer w-full bg-transparent border-b-2 py-2 px-1 focus:outline-none text-lg ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 style={{
                   borderColor: theme.colors.accent,
                   color: theme.colors.text.primary,
@@ -148,7 +150,8 @@ const RegisterPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="peer w-full bg-transparent border-b-2 py-2 px-1 focus:outline-none text-lg"
+                disabled={loading}
+                className={`peer w-full bg-transparent border-b-2 py-2 px-1 focus:outline-none text-lg ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 style={{
                   borderColor: theme.colors.accent,
                   color: theme.colors.text.primary,
@@ -166,9 +169,10 @@ const RegisterPage: React.FC = () => {
             {/* Submit */}
             <button
               type="submit"
-              className="mt-4 py-3 rounded-xl text-white font-semibold bg-gradient-to-tr from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg"
+              disabled={loading}
+              className={`mt-4 py-3 rounded-xl text-white font-semibold bg-gradient-to-tr from-purple-500 to-pink-500 transition-all shadow-lg ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-600 hover:to-pink-600'}`}
             >
-              Register
+              {loading ? 'Registering...' : 'Register'}
             </button>
           </form>
 

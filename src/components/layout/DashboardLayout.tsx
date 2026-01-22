@@ -40,7 +40,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Page Content */}
         <main
-          className="flex-1 p-4 sm:p-6 transition-colors duration-300"
+          className="flex-1 p-4 sm:p-6 transition-colors duration-300 relative overflow-hidden"
           style={{
             backgroundColor: theme.mode === 'dark' ? '#0f0f18' : '#f9f9fb',
           }}

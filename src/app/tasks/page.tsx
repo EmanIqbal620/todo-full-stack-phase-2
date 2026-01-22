@@ -9,88 +9,23 @@ import EditTaskModal from '@/components/tasks/EditTaskModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useTask } from '@/contexts/TaskContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { NotificationTypeEnum } from '@/types/ui';
-
-// Define the Task type to match TaskList expectations
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  isCompleted: boolean;
-  priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-}
-
-// Mock data for demonstration
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    title: 'Complete project proposal',
-    description: 'Finish the proposal document and send to client',
-    isCompleted: false,
-    priority: 'high',
-    dueDate: '2026-01-20',
-    createdAt: '2026-01-15',
-    updatedAt: '2026-01-15',
-  },
-  {
-    id: '2',
-    title: 'Schedule team meeting',
-    description: 'Arrange meeting for next week to discuss roadmap',
-    isCompleted: true,
-    priority: 'medium',
-    dueDate: '2026-01-18',
-    createdAt: '2026-01-14',
-    updatedAt: '2026-01-16',
-    completedAt: '2026-01-16',
-  },
-  {
-    id: '3',
-    title: 'Review pull requests',
-    description: 'Review and merge outstanding PRs in the project',
-    isCompleted: false,
-    priority: 'low',
-    dueDate: '2026-01-22',
-    createdAt: '2026-01-15',
-    updatedAt: '2026-01-15',
-  },
-];
+import { Task, CreateTaskRequest, UpdateTaskRequest } from '@/types/task';
 
 const TasksPage: React.FC = () => {
   const { theme } = useTheme();
   const { showLoading, hideLoading } = useLoading();
   const { showToast } = useToast();
-  const [tasks, setTasks] = useState(mockTasks);
-  const [filteredTasks, setFilteredTasks] = useState(mockTasks);
+  const { tasks, loading, error, createTask, updateTask, toggleTaskCompletion, deleteTask, fetchTasks } = useTask();
+  const { isAuthenticated } = useAuth();
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'dateCreated' | 'dueDate' | 'priority' | 'title'>('dateCreated');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true); // Loading state for dashboard sections
-
-  // Simulate loading data
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Calculate statistics
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(task => task.isCompleted).length;
-  const pendingTasks = totalTasks - completedTasks;
-  const overdueTasks = tasks.filter(task =>
-    !task.isCompleted && task.dueDate && new Date(task.dueDate) < new Date()
-  ).length;
-
-  // Calculate completion percentage
-  const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const [currentTask, setCurrentTask] = useState<Task | null>(null);
 
   // Apply filters and sorting
   useEffect(() => {
@@ -98,9 +33,9 @@ const TasksPage: React.FC = () => {
 
     // Apply filter
     if (filter === 'active') {
-      result = result.filter(task => !task.isCompleted);
+      result = result.filter(task => !task.is_completed);
     } else if (filter === 'completed') {
-      result = result.filter(task => task.isCompleted);
+      result = result.filter(task => task.is_completed);
     }
 
     // Apply search
@@ -115,12 +50,12 @@ const TasksPage: React.FC = () => {
     result.sort((a, b) => {
       switch (sortBy) {
         case 'dateCreated':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         case 'dueDate':
-          if (!a.dueDate && !b.dueDate) return 0;
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          if (!a.due_date && !b.due_date) return 0;
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime();
         case 'priority':
           const priorityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
           return priorityOrder[b.priority || 'low'] - priorityOrder[a.priority || 'low'];
@@ -134,71 +69,86 @@ const TasksPage: React.FC = () => {
     setFilteredTasks(result);
   }, [tasks, filter, sortBy, searchTerm]);
 
-  const handleToggleTask = (taskId: string) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              isCompleted: !task.isCompleted,
-              completedAt: !task.isCompleted ? new Date().toISOString() : undefined
-            }
-          : task
-      )
-    );
-    showToast(`Task ${tasks.find(t => t.id === taskId)?.isCompleted ? 'marked incomplete' : 'completed'}`, NotificationTypeEnum.SUCCESS);
+  useEffect(() => {
+    if (isAuthenticated()) {
+      fetchTasks();
+    }
+  }, [isAuthenticated]); // Removed fetchTasks to prevent infinite loop
+
+  const handleToggleTask = async (taskId: string) => {
+    try {
+      await toggleTaskCompletion(taskId);
+      showToast('Task updated successfully', NotificationTypeEnum.SUCCESS);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update task', NotificationTypeEnum.ERROR);
+    }
   };
 
   const handleEditTask = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
-    setCurrentTask(task);
+    setCurrentTask(task || null);
     setIsModalOpen(true);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    showLoading('deleteTask', 'apiCall', 'Deleting task...');
-    setTimeout(() => {
-      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      showLoading('deleteTask', 'apiCall', 'Deleting task...');
+      await deleteTask(taskId);
       hideLoading('deleteTask');
       showToast('Task deleted successfully', NotificationTypeEnum.SUCCESS);
-    }, 1000);
+    } catch (err: any) {
+      hideLoading('deleteTask');
+      showToast(err.message || 'Failed to delete task', NotificationTypeEnum.ERROR);
+    }
   };
 
-  const handleSaveTask = (taskData: any) => {
-    showLoading('saveTask', 'apiCall', taskData.id ? 'Updating task...' : 'Creating task...');
+  const handleSaveTask = async (taskData: CreateTaskRequest | UpdateTaskRequest) => {
+    try {
+      showLoading('saveTask', 'apiCall', currentTask ? 'Updating task...' : 'Creating task...');
 
-    setTimeout(() => {
       if (currentTask) {
         // Update existing task
-        setTasks(prevTasks =>
-          prevTasks.map(task =>
-            task.id === currentTask.id ? { ...task, ...taskData } : task
-          )
-        );
+        await updateTask(currentTask.id, taskData as UpdateTaskRequest);
         showToast('Task updated successfully', NotificationTypeEnum.SUCCESS);
       } else {
         // Create new task
-        const newTask = {
-          id: `task-${Date.now()}`,
-          ...taskData,
-          isCompleted: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setTasks(prevTasks => [newTask, ...prevTasks]);
+        await createTask(taskData as CreateTaskRequest);
         showToast('Task created successfully', NotificationTypeEnum.SUCCESS);
       }
 
       hideLoading('saveTask');
       setIsModalOpen(false);
       setCurrentTask(null);
-    }, 1000);
+    } catch (err: any) {
+      hideLoading('saveTask');
+      showToast(err.message || 'Failed to save task', NotificationTypeEnum.ERROR);
+    }
   };
 
   const handleAddTask = () => {
     setCurrentTask(null);
     setIsModalOpen(true);
   };
+
+  // Show error if there's an error
+  if (error && !loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-red-500">Error</h2>
+            <p className="text-gray-600">{error}</p>
+            <button
+              onClick={() => fetchTasks()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -286,7 +236,7 @@ const TasksPage: React.FC = () => {
           </div>
 
           {/* Task List - Loading animation */}
-          {isLoading ? (
+          {loading ? (
             <motion.div
               animate={{
                 opacity: [0.5, 1, 0.5],
@@ -318,7 +268,14 @@ const TasksPage: React.FC = () => {
             </motion.div>
           ) : (
             <TaskList
-              tasks={filteredTasks}
+              tasks={filteredTasks.map(task => ({
+                ...task,
+                isCompleted: task.is_completed,
+                createdAt: task.created_at,
+                updatedAt: task.updated_at,
+                completedAt: task.completed_at,
+                dueDate: task.due_date,
+              }))}
               onToggle={handleToggleTask}
               onEdit={handleEditTask}
               onDelete={handleDeleteTask}
@@ -337,7 +294,14 @@ const TasksPage: React.FC = () => {
         {/* Task Modal */}
         <EditTaskModal
           isOpen={isModalOpen}
-          task={currentTask}
+          task={currentTask ? {
+            ...currentTask,
+            isCompleted: currentTask.is_completed,
+            createdAt: currentTask.created_at,
+            updatedAt: currentTask.updated_at,
+            completedAt: currentTask.completed_at,
+            dueDate: currentTask.due_date,
+          } : undefined}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveTask}
         />

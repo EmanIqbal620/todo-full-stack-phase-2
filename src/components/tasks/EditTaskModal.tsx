@@ -11,7 +11,7 @@ interface Task {
   title: string;
   description?: string;
   isCompleted: boolean;
-  priority: 'low' | 'medium' | 'high';
+  priority?: 'low' | 'medium' | 'high';
   dueDate?: string;
   createdAt: string;
   updatedAt: string;

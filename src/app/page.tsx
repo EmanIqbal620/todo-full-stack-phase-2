@@ -38,7 +38,7 @@ const HomePage: React.FC = () => {
       />
 
       {/* ---------- Background Glow Layer (Layer 2) ---------- */}
-      <div className="absolute inset-0 -z-10 pointer-events-none">
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
         {/* Top-left glow */}
         <div
           className="absolute top-[-120px] left-[-120px] w-[420px] h-[420px] rounded-full blur-[120px] opacity-30"
